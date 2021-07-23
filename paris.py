@@ -25,11 +25,24 @@ FPS = 60
 
 #define game variables
 GRAVITY = 0.5
-
+TILE_SIZE = 40
 
 # define player action variables. Essentially initialize player movement
 moving_left = False
 moving_right = False
+shoot = False
+
+#load images
+#bullet
+bullet_img = pygame.image.load('img/icons/bullet.png').convert_alpha()
+bread_img = pygame.image.load('img/icons/bread/0.png').convert_alpha()
+bread_img = pygame.transform.scale(bread_img, (int(bread_img.get_width() * 2) , int(bread_img.get_height() * 2)))
+bread2_img = pygame.image.load('img/icons/bread/1.png').convert_alpha()
+bread2_img = pygame.transform.scale(bread2_img, (int(bread2_img.get_width() * 2) , int(bread2_img.get_height() * 2)))
+item_boxes = {
+    'Bread': bread_img,
+    'Bread2': bread2_img
+}
 
 # load music and sounds
 #pygame.mixer.music.load('audio/awake.mp3')
@@ -40,8 +53,14 @@ moving_right = False
 # defining colors
 BG = (0,0,0) # background color RGB (currently set at black)
 BLUE = (0,0,255)
+WHITE = (255,255,255)
 RED = (255,0,0)
 
+font = pygame.font.SysFont('Comic Sans', 30)
+
+def draw_text(text, font, text_col,x,y):
+    img = font.render(text, True, text_col)
+    screen.blit(img, (x,y))
 
 def draw_bg():
     '''
@@ -71,6 +90,10 @@ class Player(pygame.sprite.Sprite):
         self.alive = True
         self.char_type = char_type
         self.speed = speed
+        self.shoot_cooldown = 0
+        self.health = 1
+        self.bread_collected = 0
+        self.max_health = self.health
         self.direction = 1
         self.vel_y = 0 # velocity in the y axis
         self.jump = False
@@ -82,42 +105,81 @@ class Player(pygame.sprite.Sprite):
         self.action = 0
         self.update_time = pygame.time.get_ticks()
         
-        # idle animation
-        temp_list = []
-        for i in range(2): # loads a sequence of images making an animation
-            img = pygame.image.load(f'img/{self.char_type}/idle/{i}.png')    # import player 
-            img = pygame.transform.scale(img, (int(img.get_width() * scale) , int(img.get_height() * scale)))    # size (scale) of player
-            temp_list.append(img)
-        self.animation_list.append(temp_list)
-        '''
-        # moving animation
-        temp_list = []
-        for i in range(11): # loads a sequence of images making an animation
-            img = pygame.image.load(f'img/{self.char_type}/movement/{i}.png')    # import player 
-            img = pygame.transform.scale(img, (int(img.get_width() * scale) , int(img.get_height() * scale)))    # size (scale) of player
-            temp_list.append(img)
-        self.animation_list.append(temp_list)
+        if self.char_type == 'player1':
+            # idle animation
+            temp_list = []
+            for i in range(2): # loads a sequence of images making an animation
+                img = pygame.image.load(f'img/{self.char_type}/idle/{i}.png').convert_alpha()    # import player 
+                img = pygame.transform.scale(img, (int(img.get_width() * scale) , int(img.get_height() * scale)))    # size (scale) of player
+                temp_list.append(img)
+            self.animation_list.append(temp_list)
+            
+            # moving animation
+            temp_list = []
+            for i in range(12): # loads a sequence of images making an animation
+                img = pygame.image.load(f'img/{self.char_type}/run/{i}.png').convert_alpha()    # import player 
+                img = pygame.transform.scale(img, (int(img.get_width() * scale) , int(img.get_height() * scale)))    # size (scale) of player
+                temp_list.append(img)
+            self.animation_list.append(temp_list)
 
-        # falling animation
-        temp_list = []
-        for i in range(5): # loads a sequence of images making an animation
-            img = pygame.image.load(f'img/{self.char_type}/fall/{i}.png')    # import player 
-            img = pygame.transform.scale(img, (int(img.get_width() * scale) , int(img.get_height() * scale)))    # size (scale) of player
-            temp_list.append(img)
-        self.animation_list.append(temp_list)
+            # falling animation
+            temp_list = []
+            for i in range(5): # loads a sequence of images making an animation
+                img = pygame.image.load(f'img/{self.char_type}/jump/{i}.png').convert_alpha()    # import player 
+                img = pygame.transform.scale(img, (int(img.get_width() * scale) , int(img.get_height() * scale)))    # size (scale) of player
+                temp_list.append(img)
+            self.animation_list.append(temp_list)
 
-        # squatting animation
-        temp_list = []
-        for i in range(5): # loads a sequence of images making an animation
-            img = pygame.image.load(f'img/{self.char_type}/squat/{i}.png')    # import player 
-            img = pygame.transform.scale(img, (int(img.get_width() * scale) , int(img.get_height() * scale)))    # size (scale) of player
-            temp_list.append(img)
-        self.animation_list.append(temp_list)
-        '''
+            # squatting animation
+            temp_list = []
+            for i in range(2): # loads a sequence of images making an animation
+                img = pygame.image.load(f'img/{self.char_type}/duck/{i}.png').convert_alpha()    # import player 
+                img = pygame.transform.scale(img, (int(img.get_width() * scale) , int(img.get_height() * scale)))    # size (scale) of player
+                temp_list.append(img)
+            self.animation_list.append(temp_list)
+
+            # death animation
+            temp_list = []
+            for i in range(6): # loads a sequence of images making an animation
+                img = pygame.image.load(f'img/{self.char_type}/death/{i}.png').convert_alpha()    # import player 
+                img = pygame.transform.scale(img, (int(img.get_width() * scale) , int(img.get_height() * scale)))    # size (scale) of player
+                temp_list.append(img)
+            self.animation_list.append(temp_list)
+
+            # respawn animation
+            temp_list = []
+            for i in range(4): # loads a sequence of images making an animation
+                img = pygame.image.load(f'img/{self.char_type}/respawn/{i}.png').convert_alpha()    # import player 
+                img = pygame.transform.scale(img, (int(img.get_width() * scale) , int(img.get_height() * scale)))    # size (scale) of player
+                temp_list.append(img)
+            self.animation_list.append(temp_list)
+        
+        if self.char_type == 'enemy2':
+            temp_list = []
+            for i in range(2): # loads a sequence of images making an animation
+                img = pygame.image.load(f'img/{self.char_type}/move/{i}.png').convert_alpha()    # import player 
+                img = pygame.transform.scale(img, (int(img.get_width() * scale) , int(img.get_height() * scale)))    # size (scale) of player
+                temp_list.append(img)
+            self.animation_list.append(temp_list)
+
+            temp_list = []
+            for i in range(2): # loads a sequence of images making an animation
+                img = pygame.image.load(f'img/{self.char_type}/attack/{i}.png').convert_alpha()    # import player 
+                img = pygame.transform.scale(img, (int(img.get_width() * scale) , int(img.get_height() * scale)))    # size (scale) of player
+                temp_list.append(img)
+            self.animation_list.append(temp_list)
+            
         
         self.image = self.animation_list[self.action][self.frame_index]
         self.rect = self.image.get_rect() # rectangle is the hitbox of the player
         self.rect.center = (x,y)
+    
+    def update(self):
+        self.update_animation()
+        self.check_alive()
+        # update cool down
+        if self.shoot_cooldown > 0:
+            self.shoot_cooldown -= 1
 
     def move(self, moving_left, moving_right):
         '''
@@ -161,6 +223,12 @@ class Player(pygame.sprite.Sprite):
         # update rectangle (hitbox's) position
         self.rect.x += dx
         self.rect.y += dy 
+
+    def shoot(self):
+        if self.shoot_cooldown == 0:
+            self.shoot_cooldown = 20
+            bullet = Bullet(self.rect.centerx + (0.6 * self.rect.size[0] * self.direction), (self.rect.centery), self.direction)
+            bullet_group.add(bullet)
     
     def update_animation(self):
         '''
@@ -176,7 +244,10 @@ class Player(pygame.sprite.Sprite):
             self.frame_index += 1
         # if animation has run out then loop it back to the beginning of the loop
         if self.frame_index >= len(self.animation_list[self.action]):
-            self.frame_index = 0
+            if self.action == 2 or self.action == 4 or self.action == 5:
+                self.frame_index = len(self.animation_list[self.action]) - 1
+            else:
+                self.frame_index = 0
     
     def update_action(self, new_action):
         '''
@@ -188,16 +259,86 @@ class Player(pygame.sprite.Sprite):
             self.frame_index = 0
             self.update_time = pygame.time.get_ticks()
 
+    def check_alive(self):
+        if self.health <= 0:
+            self.health = 0
+            self.speed = 0
+            self.alive = False
+            self.update_action(4)
 
     def draw(self):
         '''
         Method that draws character from the __init__()
         '''
         screen.blit(pygame.transform.flip(self.image, self.flip, False), self.rect)
+        pygame.draw.rect(screen, BLUE, self.rect,1) # hit box
 
 
+class ItemBox(pygame.sprite.Sprite):
+    def __init__(self, item_type, x, y):
+        pygame.sprite.Sprite.__init__(self)
+        self.item_type = item_type
+        self.image = item_boxes[self.item_type]
+        self.rect = self.image.get_rect()
+        self.rect.midtop = (x + TILE_SIZE // 2, y + (TILE_SIZE) - self.image.get_height())
+    
+    def update(self):
+        #check if the player has collected bread
+        if pygame.sprite.collide_rect(self, player):
+            # check what kind of box it was
+            if self.item_type == 'Bread':
+                player.bread_collected += 1
+            elif self.item_type == 'Bread2':
+                player.bread_collected += 1
+            # delete the item box
+            self.kill()
 
-player = Player('player', 20, 400, 2, 5) # generating character at (x-coord, y-coord) [y - axis reverse]
+
+class Bullet(pygame.sprite.Sprite):
+    def __init__(self, x, y, direction):
+        pygame.sprite.Sprite.__init__(self)
+        self.speed = 10
+        self.image = bullet_img
+        self.rect = self.image.get_rect()
+        self.rect.center = (x,y)
+        self.direction = direction
+    
+    def update(self):
+        #move bullet
+        self.rect.x += (self.direction * self.speed)
+        #check if bullet has gone off screen
+        if self.rect.right < 0 or self.rect.left > SCREEN_WIDTH:
+            self.kill()
+        
+        #check collision with characters
+        if pygame.sprite.spritecollide(player, bullet_group, False):
+            if player.alive:
+                player.health -= 1
+                self.kill()
+        for enemy in enemy_group:
+            if pygame.sprite.spritecollide(enemy, bullet_group, False):
+                if enemy.alive:
+                    enemy.health -= 1
+                    self.kill()
+
+
+# create sprite groups
+enemy_group = pygame.sprite.Group()
+bullet_group = pygame.sprite.Group()
+item_group = pygame.sprite.Group()
+
+# temp create item boxes
+item_box = ItemBox('Bread', 150, 470)
+item_group.add(item_box)
+item_box2 = ItemBox('Bread2', 300, 470)
+item_group.add(item_box2)
+
+
+player = Player('player1', 20, 400, 3, 5) # generating character at (x-coord, y-coord) [y - axis reverse]
+enemy = Player('enemy2', 120, 450, 3, 5) # generating character at (x-coord, y-coord) [y - axis reverse]
+enemy2 = Player('enemy2', 170, 450, 3, 5) # generating character at (x-coord, y-coord) [y - axis reverse]
+enemy_group.add(enemy)
+enemy_group.add(enemy2)
 
 
 
@@ -207,11 +348,28 @@ run = True
 while run:
     clock.tick(FPS)
     draw_bg()
-    player.update_animation()
+    # show bread collected
+    draw_text(f'      COLLECTED: {player.bread_collected}', font, WHITE, 10, 35)
+    screen.blit(bread_img, (10, 25))
+
+    player.update()
     player.draw()
+    
+    for enemy in enemy_group:
+        enemy.update()
+        enemy.draw()
+
+    #update and draw groups
+    bullet_group.update()
+    item_group.update()
+    bullet_group.draw(screen)
+    item_group.draw(screen)
 
     #update player actions
     if player.alive:
+        #shoot bullets
+        if shoot:
+            player.shoot()
         if player.in_air:
             player.update_action(2) #2: jump and fall
         elif player.squat:
@@ -236,7 +394,8 @@ while run:
                 player.jump = True
             if event.key == pygame.K_s and player.alive:
                 player.squat = True
-
+            if event.key == pygame.K_SPACE:
+                shoot = True
             #if event.key == pygame.K_ESCAPE:  # if you want to have escape button quit the game
             #    run = False
 
@@ -248,6 +407,8 @@ while run:
                 moving_right = False
             if event.key == pygame.K_s:
                 player.squat = False
+            if event.key == pygame.K_SPACE:
+                shoot = False
             
 
     pygame.display.update()
