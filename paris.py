@@ -5,6 +5,7 @@ __author__ = 'Simon Lee: Game Developer, simonlee711@gmail.com'
 import pygame
 from pygame import mixer
 import os
+import random 
 
 mixer.init()
 pygame.init()
@@ -104,6 +105,12 @@ class Player(pygame.sprite.Sprite):
         self.frame_index = 0
         self.action = 0
         self.update_time = pygame.time.get_ticks()
+
+        # ai specific variables
+        self.move_counter = 0
+        self.vision = pygame.Rect(0,0,150,20)
+        self.idling = False
+        self.idling_counter = 0
         
         if self.char_type == 'player1':
             # idle animation
@@ -229,6 +236,40 @@ class Player(pygame.sprite.Sprite):
             self.shoot_cooldown = 20
             bullet = Bullet(self.rect.centerx + (0.6 * self.rect.size[0] * self.direction), (self.rect.centery), self.direction)
             bullet_group.add(bullet)
+
+    def ai(self):
+        '''
+        computer controlled characters
+        '''
+        if self.alive and player.alive:
+            if self.idling == False and random.randint(1, 200) == 1:
+                self.idling = True
+                self.idling_counter = 500
+            #check if ai is near the player
+            if self.vision.colliderect(player.rect):
+                #stop running and face the player
+                self.shoot()
+            else:
+                if self.idling == False:
+                    if self.direction == 1:
+                        ai_moving_right = True
+                    if self.direction == -1:
+                        ai_moving_right = False
+                    ai_moving_left = not ai_moving_right
+                    self.move(ai_moving_left, ai_moving_right)
+                    self.move_counter += 1
+                    # update ai vision as the enemy moves
+                    self.vision.center = (self.rect.centerx + 50 * self.direction, self.rect.centery)
+                    pygame.draw.rect(screen, RED, self.vision, 1) # draw vision rectangle
+
+                    if self.move_counter > TILE_SIZE:
+                        self.direction *= -1
+                        self.move_counter *= -1
+                else:
+                    self.idling -= 1
+                    if self.idling_counter <= 0:
+                        self.idling = False
+
     
     def update_animation(self):
         '''
@@ -272,6 +313,7 @@ class Player(pygame.sprite.Sprite):
         '''
         screen.blit(pygame.transform.flip(self.image, self.flip, False), self.rect)
         pygame.draw.rect(screen, BLUE, self.rect,1) # hit box
+        
 
 
 class ItemBox(pygame.sprite.Sprite):
@@ -334,9 +376,9 @@ item_box2 = ItemBox('Bread2', 300, 470)
 item_group.add(item_box2)
 
 
-player = Player('player1', 20, 400, 3, 5) # generating character at (x-coord, y-coord) [y - axis reverse]
-enemy = Player('enemy2', 120, 450, 3, 5) # generating character at (x-coord, y-coord) [y - axis reverse]
-enemy2 = Player('enemy2', 170, 450, 3, 5) # generating character at (x-coord, y-coord) [y - axis reverse]
+player = Player('player1', 20, 400, 2, 4) # generating character at (x-coord, y-coord) [y - axis reverse]
+enemy = Player('enemy2', 300, 450, 2, 2) # generating character at (x-coord, y-coord) [y - axis reverse]
+enemy2 = Player('enemy2', 640, 450, 2, 2) # generating character at (x-coord, y-coord) [y - axis reverse]
 enemy_group.add(enemy)
 enemy_group.add(enemy2)
 
@@ -356,6 +398,7 @@ while run:
     player.draw()
     
     for enemy in enemy_group:
+        enemy.ai()
         enemy.update()
         enemy.draw()
 
