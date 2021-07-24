@@ -5,7 +5,9 @@ __author__ = 'Simon Lee: Game Developer, simonlee711@gmail.com'
 import pygame
 from pygame import mixer
 import os
-import random 
+import random
+
+from pygame import draw 
 
 mixer.init()
 pygame.init()
@@ -18,7 +20,7 @@ SCREEN_HEIGHT = int(SCREEN_WIDTH * 0.8)
 
 # Building the screen and caption
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Where's my bread?")
+pygame.display.set_caption("私のパンはどこですか?")
 
 # set frame rate
 clock = pygame.time.Clock()
@@ -175,6 +177,14 @@ class Player(pygame.sprite.Sprite):
                 img = pygame.transform.scale(img, (int(img.get_width() * scale) , int(img.get_height() * scale)))    # size (scale) of player
                 temp_list.append(img)
             self.animation_list.append(temp_list)
+        if self.char_type == 'car2':
+            temp_list = []
+            for i in range(2): # loads a sequence of images making an animation
+                img = pygame.image.load(f'img/{self.char_type}/{i}.png').convert_alpha()    # import player 
+                img = pygame.transform.scale(img, (int(img.get_width() * scale) , int(img.get_height() * scale)))    # size (scale) of player
+                temp_list.append(img)
+            self.animation_list.append(temp_list)
+
             
         
         self.image = self.animation_list[self.action][self.frame_index]
@@ -270,6 +280,34 @@ class Player(pygame.sprite.Sprite):
                     if self.idling_counter <= 0:
                         self.idling = False
 
+    def car_ai(self):
+        '''
+        computer controlled characters
+        '''
+        if self.alive and player.alive:
+            if self.idling == False and random.randint(1, 200) == 1:
+                self.idling = True
+                self.idling_counter = 500
+            else:
+                if self.idling == False:
+                    if self.direction == 1:
+                        ai_moving_right = True
+                    if self.direction == -1:
+                        ai_moving_right = False
+                    ai_moving_left = not ai_moving_right
+                    self.move(ai_moving_left, ai_moving_right)
+                    self.move_counter += 1
+                    # update ai vision as the enemy moves
+                    #self.vision.center = (self.rect.centerx + 50 * self.direction, self.rect.centery)
+                    #pygame.draw.rect(screen, RED, self.vision, 1) # draw vision rectangle
+
+                    if self.move_counter > TILE_SIZE:
+                        self.direction *= -1
+                        self.move_counter *= -1
+                else:
+                    self.idling -= 1
+                    if self.idling_counter <= 0:
+                        self.idling = False
     
     def update_animation(self):
         '''
@@ -368,6 +406,7 @@ class Bullet(pygame.sprite.Sprite):
 enemy_group = pygame.sprite.Group()
 bullet_group = pygame.sprite.Group()
 item_group = pygame.sprite.Group()
+car_group = pygame.sprite.Group()
 
 # temp create item boxes
 item_box = ItemBox('Bread', 150, 470)
@@ -379,8 +418,10 @@ item_group.add(item_box2)
 player = Player('player1', 20, 400, 2, 4) # generating character at (x-coord, y-coord) [y - axis reverse]
 enemy = Player('enemy2', 300, 450, 2, 2) # generating character at (x-coord, y-coord) [y - axis reverse]
 enemy2 = Player('enemy2', 640, 450, 2, 2) # generating character at (x-coord, y-coord) [y - axis reverse]
+car1 = Player('car2', 700, 450, 2, 8) # generating character at (x-coord, y-coord) [y - axis reverse]
 enemy_group.add(enemy)
 enemy_group.add(enemy2)
+car_group.add(car1)
 
 
 
@@ -401,12 +442,19 @@ while run:
         enemy.ai()
         enemy.update()
         enemy.draw()
+    
+    for car in car_group:
+        car.car_ai()
+        car.update()
+        car.draw()
 
     #update and draw groups
     bullet_group.update()
     item_group.update()
+    car_group.update()
     bullet_group.draw(screen)
     item_group.draw(screen)
+    car_group.draw(screen)
 
     #update player actions
     if player.alive:
@@ -437,8 +485,8 @@ while run:
                 player.jump = True
             if event.key == pygame.K_s and player.alive:
                 player.squat = True
-            if event.key == pygame.K_SPACE:
-                shoot = True
+            #if event.key == pygame.K_SPACE:
+            #    shoot = True
             #if event.key == pygame.K_ESCAPE:  # if you want to have escape button quit the game
             #    run = False
 
