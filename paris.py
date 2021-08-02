@@ -3,13 +3,15 @@ __author__ = 'Simon Lee: Game Developer, simonlee711@gmail.com'
 
 
 import pygame
+import pygame.freetype
 from pygame import mixer
 import random
 import csv
-
+import time
 from pygame import time
 import button
 from pygame import draw 
+import pickle
 
 # creation
 mixer.init()
@@ -25,15 +27,15 @@ pygame.display.set_caption("私のパンはどこですか?")
 
 # set frame rate
 clock = pygame.time.Clock()
-FPS = 60
+FPS = 100
 
 #define game variables
 GRAVITY = 0.5
 SCROLL_THRESH = 300
 ROWS = 16
-COLS = 150
+COLS = 350
 TILE_SIZE = SCREEN_HEIGHT // ROWS
-TILE_TYPES = 42
+TILE_TYPES = 66
 screen_scroll = 0
 bg_scroll = 0
 level = 1
@@ -78,7 +80,13 @@ aesprite_img = pygame.transform.scale(aesprite_img, (int(aesprite_img.get_width(
 leaderboards_img = pygame.image.load('img/display/leaderboards.png').convert_alpha()
 leaderboards_img = pygame.transform.scale(leaderboards_img, (int(leaderboards_img.get_width() * 2) , int(leaderboards_img.get_height() * 2)))
 software_img = pygame.image.load('img/display/software.png').convert_alpha()
-
+lead_title_img = pygame.image.load('img/display/leaderboard_title.png').convert_alpha()
+one_img = pygame.image.load('img/display/1st.png').convert_alpha()
+one_img = pygame.transform.scale(one_img, (int(one_img.get_width() * 2) , int(one_img.get_height() * 2)))
+two_img = pygame.image.load('img/display/2nd.png').convert_alpha()
+two_img = pygame.transform.scale(two_img, (int(two_img.get_width() * 2) , int(two_img.get_height() * 2)))
+three_img = pygame.image.load('img/display/3rd.png').convert_alpha()
+three_img = pygame.transform.scale(three_img, (int(three_img.get_width() * 2) , int(three_img.get_height() * 2)))
 
 #store tiles in a list
 img_list = []
@@ -109,9 +117,12 @@ yahoo_fx.set_volume(1.5)
 
 # defining colors
 BG = (130, 181, 210) # background color matches the sky
-BLUE = (0,0,255)
+BLUE = (63,63,142)
 WHITE = (255,255,255)
-RED = (255,0,0)
+RED = (152,50,50)
+BLACK = (0,0,0)
+GREEN = (153, 229, 80)
+BROWN = (102, 57, 49)
 
 font = pygame.font.SysFont('Futura', 30)
 
@@ -175,6 +186,30 @@ def draw_leaderboards():
     screen.fill(BG)
     screen.blit(sky_img,(0,0))
     screen.blit(tower_img,(460, (0 - 145)))
+    screen.blit(lead_title_img, (175,20))
+    high_score = ''
+    time_display = list(str(best_score))
+    for i,j, in enumerate([2,4]):
+        time_display.insert(i + j, ':')
+    for element in time_display:
+        high_score += element
+    draw_text(f'HIGH SCORE: {high_score}', font, GREEN, 220, 155)
+
+    # bread messages
+    if (player.bread_collected >= 20 and int(comparison) < 20000) or int(comparison) < 12000:
+        draw_text(f'Oui oui!!!', font, GREEN, 350, 200)
+        screen.blit(one_img,(320,250))
+    elif (player.bread_collected >= 10 and player.bread_collected <= 19 and int(comparison) <= 30000) or (int(comparison) >= 12000 and int(comparison) <= 23000):
+        draw_text(f'où est mon pain???', font, GREEN, 260, 200)
+        screen.blit(two_img,(320,250))
+    elif player.bread_collected <= 9 or int(comparison) > 23000:
+        draw_text(f'Mama Mia...', font, GREEN, 350, 200)
+        screen.blit(three_img,(320,250))
+    
+    draw_text(f'YOUR SCORE: {finished}', font, GREEN, 220, 500)
+    
+        
+
 
 def draw_version():
     '''
@@ -232,7 +267,7 @@ class Player(pygame.sprite.Sprite):
         self.char_type = char_type
         self.speed = speed
         self.shoot_cooldown = 0     # so you can't fire off lots of shots at the same time
-        self.health = 1000      # health of player
+        self.health = 2      # health of player
         self.bread_collected = 0
         self.max_health = self.health
         self.direction = 1
@@ -352,6 +387,10 @@ class Player(pygame.sprite.Sprite):
         '''
         checks both if animation is lacking and whether player has been killed
         '''
+        if pygame.sprite.spritecollide(player, car_group, False):
+            if player.alive:
+                player.health -= 100
+                player.update_action(4)
         self.update_animation()
         self.check_alive()
         # update cool down
@@ -399,6 +438,7 @@ class Player(pygame.sprite.Sprite):
                 dx = 0
                 # if ai has hit wall make it turn around
                 if self.char_type == 'enemy2':
+                    self.health += 1000
                     self.direction *=-1
                     self.move_counter = 0
             #check for collision in the y direction
@@ -483,7 +523,7 @@ class Player(pygame.sprite.Sprite):
                     # update ai vision as the enemy moves
                     self.vision.center = (self.rect.centerx + 50 * self.direction, self.rect.centery)
                     
-                    pygame.draw.rect(screen, RED, self.vision, 1) # draw vision rectangle
+                    #pygame.draw.rect(screen, RED, self.vision, 1) # draw vision rectangle
 
                     if self.move_counter > TILE_SIZE:
                         self.direction *= -1
@@ -580,7 +620,7 @@ class Player(pygame.sprite.Sprite):
         Method that draws character from the __init__()
         '''
         screen.blit(pygame.transform.flip(self.image, self.flip, False), self.rect)
-        pygame.draw.rect(screen, BLUE, self.rect,1) # hit box
+        #pygame.draw.rect(screen, BLUE, self.rect,1) # hit box
         
 
 class World():
@@ -608,14 +648,14 @@ class World():
                     img_rect.y = y * TILE_SIZE
                     tile_data = (img, img_rect)
                     #blocks that you cannot go through
-                    if (tile >= 0 and tile <= 2) or (tile == 4) or (tile == 29) or (tile == 30) or (tile == 10) or (tile >= 16 and tile <= 18) or (tile == 9) or (tile == 11) or (tile == 13) or (tile == 15) or (tile >= 19 and tile <= 27) or (tile >= 31 and tile <= 33) or (tile == 8) or (tile == 12) or (tile == 14):
+                    if (tile >= 0 and tile <= 2) or (tile == 4) or (tile == 29) or (tile == 30) or (tile == 10) or (tile >= 16 and tile <= 18) or (tile == 9) or (tile == 11) or (tile == 13) or (tile == 15) or (tile >= 19 and tile <= 27) or (tile >= 31 and tile <= 33) or (tile == 8) or (tile == 12) or (tile == 14) or (tile >= 42 and tile <= 57) or (tile >= 62 and tile <= 65):
                         self.obstacle_list.append(tile_data)
                     # water tile is insta kill
-                    elif tile == 28: 
+                    elif tile == 28 or (tile >= 59 and tile <= 61): 
                         water = Water(img,x * TILE_SIZE, y * TILE_SIZE)
                         water_group.add(water)
                     # decorative non interactive tiles
-                    elif (tile >= 5 and tile <= 7) or (tile >= 35 and tile <= 37):
+                    elif (tile >= 5 and tile <= 7) or (tile >= 35 and tile <= 37) or tile == 58:
                         decoration = Decoration(img,x * TILE_SIZE, y * TILE_SIZE)
                         decoration_group.add(decoration)
                     # create player instance
@@ -627,7 +667,7 @@ class World():
                         enemy_group.add(enemy)
                     # create red car
                     elif tile == 40: 
-                        car = Player('car2', x * TILE_SIZE, y * TILE_SIZE, 2, 4) # generating character at (x-coord, y-coord) [y - axis reverse]
+                        car = Player('car2', x * TILE_SIZE, y * TILE_SIZE, 2, 3) # generating character at (x-coord, y-coord) [y - axis reverse]
                         car_group.add(car)
                     # create blue car
                     elif tile == 41: 
@@ -707,9 +747,17 @@ class ItemBox(pygame.sprite.Sprite):
         if pygame.sprite.collide_rect(self, player):
             # check what kind of box it was
             if self.item_type == 'Bread':
+                if player.health >= 5:
+                    player.health = 5
+                else:
+                    player.health += 1
                 bread_fx.play()
                 player.bread_collected += 1
             elif self.item_type == 'Bread2':
+                if player.health >= 5:
+                    player.health = 5
+                else:
+                    player.health += 1
                 player.bread_collected += 1
                 bread_fx.play()
             # delete the item box
@@ -786,19 +834,15 @@ with open(f'level{level}_data.csv', newline='') as csvfile: #loads in csv file
 world = World()
 player = world.process_data(world_data)
 
-
+frame_count = 100
+start_time = 10
 # main game loop
 run = True
 while run:
     clock.tick(FPS)
     
     # various menus
-    if leaderboards == True and start_game == False:
-        draw_leaderboards()
-        if back_button.draw(screen):
-            leaderboards = False
-            continue
-    elif controls_menu == True and start_game == False:
+    if controls_menu == True and start_game == False:
         draw_controls()
         if back_button.draw(screen):
             controls_menu = False
@@ -810,12 +854,15 @@ while run:
         draw_version()
         if back_button.draw(screen):
             version_menu = False
-    elif start_game == False:
+    elif start_game == False and leaderboards == False:
         draw_menu()
         # add buttons
         if yahoo_button.draw(screen):
             yahoo_fx.play()
         if start_button.draw(screen):
+            start = pygame.time.get_ticks()
+            frame_count = 100
+            screen_scroll = 0
             start_game = True
         if controls_button.draw(screen):
             controls_menu = True
@@ -829,11 +876,41 @@ while run:
         # draw map
         world.draw()
         # show bread collected
-        draw_text(f'      COLLECTED: {player.bread_collected}', font, WHITE, 10, 35)
-        screen.blit(bread_img, (10, 25))
+        draw_text(f'      COLLECTED: {player.bread_collected}', font, BLUE, 10, 35)
+        draw_text(f' Health: {player.health}', font, RED, 10, 110)
+        screen.blit(bread_img, (25, 35))
 
         player.update()
         player.draw()
+        # --- Timer going up ---
+        # Calculate total seconds
+        total_seconds =  frame_count // FPS
+ 
+        # Divide by 60 to get total minutes
+        minutes = total_seconds // 60
+ 
+        # Use modulus (remainder) to get seconds
+        seconds = total_seconds % 60
+        
+ 
+        # Use python string formatting to format in leading zeros
+        time_check = "{0:02}:{1:02}:{2:02}".format(minutes, seconds, frame_count % 100)
+        output_string = ("Time:" + time_check)
+ 
+        # Blit to the screen
+        text = font.render(output_string, True, WHITE)
+        screen.blit(text, [15, 70])
+
+        #total_seconds = start_time - (frame_count // FPS)
+        if total_seconds < 0:
+            total_seconds = 0
+        
+        # ALL CODE TO DRAW SHOULD GO ABOVE THIS COMMENT
+        frame_count += 1
+ 
+        # Limit frames per second
+        clock.tick(FPS * 1000)
+    
         
         for enemy in enemy_group:
             enemy.ai()
@@ -844,8 +921,7 @@ while run:
             car.car_ai()
             car.update()
             car.draw()
-            # screen = car.move(moving_left, moving_right)
-
+            
         #update and draw groups
         bullet_group.update()
         item_group.update()
@@ -860,7 +936,7 @@ while run:
         water_group.draw(screen)
         exit_group.draw(screen)
 
-        RESPAWN_COOLDOWN = 20
+        RESPAWN_COOLDOWN = 120
         #update player actions
         if player.alive:
             #shoot bullets
@@ -876,8 +952,38 @@ while run:
                 player.update_action(0) #0: idle
             screen_scroll, time_complete = player.move(moving_left, moving_right)
             bg_scroll -= screen_scroll
+            
             # check if player has reached the end:
             if time_complete:
+                fn = 'scores.txt'
+                sorted_fn = 'highscore.txt'
+
+                with open(fn,'r') as first_file:
+                    rows = first_file.readlines()
+                    sorted_rows = sorted(rows, key=lambda x: int(x.split()[0]), reverse=False)
+                    with open(sorted_fn,'w') as second_file:
+                        for row in sorted_rows:
+                            second_file.write(row)
+                # stop timer
+                finished = time_check
+                # get best time
+                with open('highscore.txt') as f:
+                    best_score = f.readline()
+                # splice out the colons 
+                comparison = finished.replace(':','')
+                comparison2 = best_score.replace(':','')
+                
+                # if current time is better then replace new high score 
+                if int(comparison) < int(comparison2):
+                    best_score = comparison
+                    with open(fn, 'w') as score_file:
+                        score_file.write(best_score)
+                # else keep high score
+                elif int(comparison) > int(comparison2):
+                    best_score = comparison2
+                    with open(fn, 'w') as score_file:
+                        score_file.write(best_score)
+                
                 leaderboards = True
                 start_game = False
         
@@ -898,6 +1004,23 @@ while run:
                                     world_data[x][y] = int(tile)
                     world = World()
                     player = world.process_data(world_data)
+
+    elif leaderboards == True and start_game == False:
+        draw_leaderboards()
+        if back_button.draw(screen):
+            world_data = reset_level()
+            #load in level data and creates world
+            with open(f'level{level}_data.csv', newline='') as csvfile: #loads in csv file
+                reader = csv.reader(csvfile, delimiter=',') #delimiter tells computer how to distinguish each tile by comma separation
+                for x, row in enumerate(reader):
+                    for y, tile in enumerate(row):
+                        #if int(tile) != 34:
+                            world_data[x][y] = int(tile)
+            world = World()
+            player = world.process_data(world_data)
+            leaderboards = False
+            time_complete = False
+            continue
                         
 
     for event in pygame.event.get():
