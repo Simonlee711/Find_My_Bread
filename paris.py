@@ -747,15 +747,15 @@ class ItemBox(pygame.sprite.Sprite):
         if pygame.sprite.collide_rect(self, player):
             # check what kind of box it was
             if self.item_type == 'Bread':
-                if player.health >= 5:
-                    player.health = 5
+                if player.health >= 3:
+                    player.health = 3
                 else:
                     player.health += 1
                 bread_fx.play()
                 player.bread_collected += 1
             elif self.item_type == 'Bread2':
-                if player.health >= 5:
-                    player.health = 5
+                if player.health >= 3:
+                    player.health = 3
                 else:
                     player.health += 1
                 player.bread_collected += 1
