@@ -4,4 +4,7 @@ French man collecting all his bread. A 2d platformer style game taking place in 
 This Repository contains all the code, csv files, art, music used in the development of "Where's My Bread"
 
 ![alt text](https://github.com/Simonlee711/Basic_Game/blob/main/img/display/title2.png?raw=true)
-![alt text](https://github.com/Simonlee711/Basic_Game/blob/main/img/Background/tower.png?raw=true)
+<p align="center">
+  <img src="https://github.com/Simonlee711/Basic_Game/blob/main/img/Background/tower.png" />
+</p>
+
