@@ -8,3 +8,16 @@ This Repository contains all the code, csv files, art, music used in the develop
   <img src="https://github.com/Simonlee711/Basic_Game/blob/main/img/Background/tower.png" />
 </p>
 
+# To Play
+
+make sure you have pygame package installed
+```
+pip install pygame
+```
+
+Then run command
+
+```
+python3 paris.py
+```
+
